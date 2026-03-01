@@ -132,6 +132,17 @@ function parseCsvLine(line) {
 
 function clean(val) { return (val || '').replace(/^"|"$/g, '').trim(); }
 
+// XSS protection: escape user-sourced strings before inserting into HTML
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
 function parseNum(val) {
     const cleaned = clean(val).replace(/,/g, '');
     const n = parseFloat(cleaned);
@@ -188,9 +199,11 @@ function avg(arr, key) { return arr.length ? sum(arr, key) / arr.length : 0; }
 
 function formatCurrency(n) { return '₦' + Math.abs(n).toLocaleString('en-NG', { maximumFractionDigits: 0 }); }
 function formatCurrencyShort(n) {
-    if (Math.abs(n) >= 1000000) return '₦' + (n / 1000000).toFixed(1) + 'M';
-    if (Math.abs(n) >= 1000) return '₦' + (n / 1000).toFixed(0) + 'K';
-    return '₦' + n;
+    const sign = n < 0 ? '-' : '';
+    const abs = Math.abs(n);
+    if (abs >= 1000000) return sign + '₦' + (abs / 1000000).toFixed(1) + 'M';
+    if (abs >= 1000) return sign + '₦' + (abs / 1000).toFixed(0) + 'K';
+    return sign + '₦' + abs;
 }
 
 // ===== DYNAMIC MONTH BUTTONS =====
@@ -306,13 +319,14 @@ function renderKPIs() {
 // ===== BEST/WORST DAY ALERTS =====
 function renderAlerts() {
     const data = getFilteredData();
-    if (data.length === 0) return;
+    const container = document.getElementById('alertsPanel');
+    if (data.length === 0) { container.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:1rem;">No data available</p>'; return; }
 
     const sorted = [...data].sort((a, b) => b.pureProfit - a.pureProfit);
     const best3 = sorted.slice(0, 3);
     const worst3 = sorted.slice(-3).reverse();
 
-    const container = document.getElementById('alertsPanel');
+
     container.innerHTML = `
     <div class="alerts-grid">
       <div class="alert-column alert-column--best">
@@ -320,7 +334,7 @@ function renderAlerts() {
         ${best3.map((r, i) => `
           <div class="alert-item alert-item--best animate-in">
             <span class="alert-rank">#${i + 1}</span>
-            <span class="alert-date">${r.date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })} (${r.day.trim()})</span>
+            <span class="alert-date">${r.date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })} (${escapeHtml(r.day.trim())})</span>
             <span class="alert-value cell-positive">${formatCurrency(r.pureProfit)}</span>
             <span class="alert-revenue">Rev: ${formatCurrency(r.revenue)}</span>
           </div>
@@ -331,7 +345,7 @@ function renderAlerts() {
         ${worst3.map((r, i) => `
           <div class="alert-item alert-item--worst animate-in">
             <span class="alert-rank">#${data.length - 2 + i}</span>
-            <span class="alert-date">${r.date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })} (${r.day.trim()})</span>
+            <span class="alert-date">${r.date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })} (${escapeHtml(r.day.trim())})</span>
             <span class="alert-value ${r.pureProfit >= 0 ? 'cell-positive' : 'cell-negative'}">${r.pureProfit < 0 ? '-' : ''}${formatCurrency(r.pureProfit)}</span>
             <span class="alert-revenue">Rev: ${formatCurrency(r.revenue)}</span>
           </div>
@@ -344,7 +358,8 @@ function renderAlerts() {
 // ===== BREAK-EVEN CALCULATOR =====
 function renderBreakEven() {
     const data = getFilteredData();
-    if (data.length === 0) return;
+    const container = document.getElementById('breakEvenPanel');
+    if (data.length === 0) { container.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:1rem;">No data available</p>'; return; }
 
     const avgDailyExpenses = avg(data, 'totalExpenses');
     const avgManagerPayout = avg(data, 'managerPayout');
@@ -363,7 +378,7 @@ function renderBreakEven() {
     const daysBelow = data.filter(r => r.revenue < breakEvenRevenue).length;
     const pctAbove = data.length > 0 ? (daysAbove / data.length * 100) : 0;
 
-    const container = document.getElementById('breakEvenPanel');
+
     container.innerHTML = `
     <div class="breakeven-grid">
       <div class="breakeven-stat">
@@ -393,7 +408,8 @@ function renderBreakEven() {
 // ===== MANAGER PAYOUT ANALYSIS =====
 function renderManagerAnalysis() {
     const data = getFilteredData();
-    if (data.length === 0) return;
+    const container = document.getElementById('managerPanel');
+    if (data.length === 0) { container.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:1rem;">No data available</p>'; return; }
 
     const withPayout = data.filter(r => r.managerPayout > 0);
     const withoutPayout = data.filter(r => r.managerPayout === 0);
@@ -405,7 +421,7 @@ function renderManagerAnalysis() {
     const totalPayouts = sum(data, 'managerPayout');
     const avgPayout = withPayout.length > 0 ? sum(withPayout, 'managerPayout') / withPayout.length : 0;
 
-    const container = document.getElementById('managerPanel');
+
     container.innerHTML = `
     <div class="manager-grid">
       <div class="manager-stat">
@@ -443,7 +459,7 @@ function renderManagerAnalysis() {
 // ===== WEEKLY SUMMARIES =====
 function renderWeeklySummaries() {
     const data = [...getFilteredData()].sort((a, b) => a.date - b.date);
-    if (data.length === 0) return;
+    if (data.length === 0) { document.getElementById('weeklyPanel').innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:1rem;">No data available</p>'; return; }
 
     // Group by ISO week
     const weeks = {};
@@ -544,15 +560,7 @@ function tooltipConfig() {
     };
 }
 
-function renderCharts() {
-    renderRevenueChart();
-    renderExpenseDonut();
-    renderProfitChart();
-    renderDayOfWeekChart();
-    renderProfitMarginChart();
-    renderExpenseTrendChart();
-    renderForecastChart();
-}
+// (chart rendering kicks off from renderAll or init)
 
 // Revenue Trend — overlay per month
 function renderRevenueChart() {
@@ -904,10 +912,10 @@ function renderTable() {
         const cumProfitClass = row.cumProfit > 0 ? 'cell-positive' : row.cumProfit < 0 ? 'cell-negative' : '';
         return `<tr>
       <td>${row.date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
-      <td>${row.day}</td>
+      <td>${escapeHtml(row.day)}</td>
       <td class="cell-highlight">${formatCurrency(row.revenue)}</td>
       <td>${row.managerPayout ? formatCurrency(row.managerPayout) : '—'}</td>
-      <td>${row.expensesRaw || '—'}</td>
+      <td>${escapeHtml(row.expensesRaw) || '—'}</td>
       <td>${formatCurrency(row.deposited)}</td>
       <td>${formatCurrency(row.totalGross)}</td>
       <td class="${profitClass}">${row.pureProfit < 0 ? '-' : ''}${formatCurrency(row.pureProfit)}</td>
@@ -964,7 +972,7 @@ function handleMonthDropdown(monthName) {
     const sorted = [...monthData].sort((a, b) => a.date - b.date);
     sorted.forEach((row, i) => {
         const dateLabel = row.date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-        opts += `<option value="${i}">${dateLabel} (${row.day.trim()}) — Rev: ${formatCurrency(row.revenue)}</option>`;
+        opts += `<option value="${i}">${dateLabel} (${escapeHtml(row.day.trim())}) — Rev: ${formatCurrency(row.revenue)}</option>`;
     });
     dayDropdown.innerHTML = opts;
     dayGroup.style.display = 'flex';
@@ -1163,13 +1171,22 @@ function renderAll() {
     renderBreakEven();
     renderManagerAnalysis();
     renderWeeklySummaries();
-    renderExpenseDonut();
-    renderProfitChart();
-    renderDayOfWeekChart();
-    renderProfitMarginChart();
-    renderExpenseTrendChart();
-    renderForecastChart();
-    renderTable();
+
+    // Wrap each chart in try/catch so one failure doesn't crash the dashboard
+    const chartRenders = [
+        renderExpenseDonut,
+        renderProfitChart,
+        renderDayOfWeekChart,
+        renderProfitMarginChart,
+        renderExpenseTrendChart,
+        renderForecastChart
+    ];
+    for (const fn of chartRenders) {
+        try { fn(); } catch (e) { console.error(`Chart render error in ${fn.name}:`, e); }
+    }
+
+    // Only render table when visible (performance)
+    if (tableVisible) renderTable();
 }
 
 // ===== INITIALIZATION =====
