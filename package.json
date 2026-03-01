@@ -1,0 +1,12 @@
+{
+  "name": "adedaz-charging-dashboard",
+  "version": "1.0.0",
+  "description": "Adedaz Charging Center — Daily Revenue Dashboard. Live data visualization from Google Sheets.",
+  "private": true,
+  "scripts": {
+    "dev": "npx -y serve . -l 3000",
+    "start": "npx -y serve . -l 3000"
+  },
+  "keywords": ["dashboard", "revenue", "charging-center"],
+  "license": "MIT"
+}

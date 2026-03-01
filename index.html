@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description"
+    content="Adedaz Charging Center — Daily Revenue Dashboard. Track revenue, expenses, profits and performance at a glance.">
+  <meta name="theme-color" content="#0a0e1a">
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="Adedaz Charging Center — Dashboard">
+  <meta property="og:description" content="Live revenue dashboard with analytics, forecasting, and expense tracking.">
+  <meta property="og:type" content="website">
+
+  <title>Adedaz Charging Center — Dashboard</title>
+
+  <!-- Favicon (emoji-based inline SVG) -->
+  <link rel="icon"
+    href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+
+  <!-- Preconnect for performance -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://docs.google.com">
+  <link rel="preconnect" href="https://cdn.jsdelivr.net">
+
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" defer></script>
+</head>
+
+
+<body>
+
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="loading-overlay">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">Discovering sheets & loading data…</div>
+  </div>
+
+  <div class="app-container">
+
+    <!-- Error Banner -->
+    <div id="errorBanner" class="error-banner"></div>
+
+    <!-- Header -->
+    <header class="header">
+      <div class="header-left">
+        <div class="header-logo">A</div>
+        <div>
+          <h1>Adedaz Charging Center</h1>
+          <div class="header-subtitle">Daily Revenue Dashboard</div>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="last-updated">
+          <span class="status-dot"></span>
+          <span id="lastUpdated">Loading…</span>
+        </div>
+        <button id="refreshBtn" class="refresh-btn" onclick="handleRefresh()">
+          <span class="refresh-icon">↻</span> Refresh
+        </button>
+      </div>
+    </header>
+
+    <!-- Month Selector (dynamic) -->
+    <div id="monthSelector" class="month-selector">
+      <!-- Rendered by JS -->
+    </div>
+
+    <!-- KPI Cards (6 cards: Revenue, Expenses, Gross, Profit, Margin, Fuel Ratio) -->
+    <section id="kpiGrid" class="kpi-grid" aria-label="Key performance indicators">
+      <!-- Rendered by JS -->
+    </section>
+
+    <!-- Best/Worst Day Alerts -->
+    <section class="insights-section">
+      <div class="section-title">🏆 Best & Worst Days</div>
+      <div id="alertsPanel" class="insights-card">
+        <!-- Rendered by JS -->
+      </div>
+    </section>
+
+    <!-- Break-Even Calculator -->
+    <section class="insights-section">
+      <div class="section-title">🎯 Break-Even Analysis</div>
+      <div id="breakEvenPanel" class="insights-card">
+        <!-- Rendered by JS -->
+      </div>
+    </section>
+
+    <!-- Manager Payout Analysis -->
+    <section class="insights-section">
+      <div class="section-title">👤 Manager Payout Analysis</div>
+      <div id="managerPanel" class="insights-card">
+        <!-- Rendered by JS -->
+      </div>
+    </section>
+
+    <!-- Charts Row 1: Revenue Trend (wide) -->
+    <section class="charts-grid" aria-label="Charts">
+
+      <div class="chart-card chart-card--wide">
+        <div class="chart-card__header">
+          <div>
+            <div class="chart-card__title">Daily Revenue Trend</div>
+            <div class="chart-card__subtitle">All months overlaid — hover for details</div>
+          </div>
+        </div>
+        <div class="chart-wrapper">
+          <canvas id="revenueChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Expense Breakdown Donut -->
+      <div class="chart-card">
+        <div class="chart-card__header">
+          <div>
+            <div class="chart-card__title">Expense Breakdown</div>
+            <div class="chart-card__subtitle">Where the money goes</div>
+          </div>
+        </div>
+        <div class="chart-wrapper chart-wrapper--small">
+          <canvas id="expenseChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Avg Revenue by Day of Week -->
+      <div class="chart-card">
+        <div class="chart-card__header">
+          <div>
+            <div class="chart-card__title">Avg Revenue by Day</div>
+            <div class="chart-card__subtitle">Which days perform best</div>
+          </div>
+        </div>
+        <div class="chart-wrapper chart-wrapper--small">
+          <canvas id="dayOfWeekChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Daily Pure Profits -->
+      <div class="chart-card chart-card--wide">
+        <div class="chart-card__header">
+          <div>
+            <div class="chart-card__title">Daily Pure Profits</div>
+            <div class="chart-card__subtitle">Green = positive, Red = negative</div>
+          </div>
+        </div>
+        <div class="chart-wrapper">
+          <canvas id="profitChart"></canvas>
+        </div>
+      </div>
+
+      <!-- NEW: Profit Margin Over Time -->
+      <div class="chart-card chart-card--wide">
+        <div class="chart-card__header">
+          <div>
+            <div class="chart-card__title">📐 Profit Margin Tracker</div>
+            <div class="chart-card__subtitle">Daily margin % with 7-day moving average</div>
+          </div>
+        </div>
+        <div class="chart-wrapper">
+          <canvas id="profitMarginChart"></canvas>
+        </div>
+      </div>
+
+      <!-- NEW: Expense Category Trends -->
+      <div class="chart-card">
+        <div class="chart-card__header">
+          <div>
+            <div class="chart-card__title">📊 Expense Trends (Weekly)</div>
+            <div class="chart-card__subtitle">Fuel vs Oil vs Other — stacked by week</div>
+          </div>
+        </div>
+        <div class="chart-wrapper chart-wrapper--small">
+          <canvas id="expenseTrendChart"></canvas>
+        </div>
+      </div>
+
+      <!-- NEW: Revenue Forecast -->
+      <div class="chart-card">
+        <div class="chart-card__header">
+          <div>
+            <div class="chart-card__title">🔮 Revenue Forecast</div>
+            <div class="chart-card__subtitle">14-day projection based on trend</div>
+          </div>
+        </div>
+        <div class="chart-wrapper chart-wrapper--small">
+          <canvas id="forecastChart"></canvas>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- Weekly Summaries -->
+    <section class="insights-section">
+      <div class="section-title">📅 Weekly Summaries</div>
+      <div id="weeklyPanel" class="insights-card">
+        <!-- Rendered by JS -->
+      </div>
+    </section>
+
+    <!-- Data Table -->
+    <section class="table-section" aria-label="Data table">
+      <div class="table-card">
+        <div class="table-header">
+          <div class="table-header__title">📋 Daily Records</div>
+          <div class="records-controls">
+            <div class="dropdown-group">
+              <label class="dropdown-label" for="monthDropdown">Month</label>
+              <div class="custom-select" id="monthDropdownWrap">
+                <select id="monthDropdown" class="dropdown" onchange="handleMonthDropdown(this.value)">
+                  <option value="">— Select Month —</option>
+                </select>
+              </div>
+            </div>
+            <div class="dropdown-group" id="dayDropdownGroup" style="display:none;">
+              <label class="dropdown-label" for="dayDropdown">Day</label>
+              <div class="custom-select">
+                <select id="dayDropdown" class="dropdown" onchange="handleDayDropdown(this.value)">
+                  <option value="">— Select Day —</option>
+                </select>
+              </div>
+            </div>
+            <button class="toggle-table-btn" id="toggleTableBtn" onclick="toggleFullTable()">
+              <span id="toggleTableIcon">▼</span> Show All Records
+            </button>
+          </div>
+        </div>
+
+        <!-- Record Detail Card (shown when a day is selected) -->
+        <div id="recordDetail" class="record-detail" style="display:none;">
+          <!-- Rendered by JS -->
+        </div>
+
+        <!-- Month Summary (shown when only month is selected) -->
+        <div id="monthSummary" class="month-summary" style="display:none;">
+          <!-- Rendered by JS -->
+        </div>
+
+        <!-- Full Table (collapsible) -->
+        <div id="fullTableWrap" class="table-container" style="display:none;">
+          <table class="data-table" id="dataTable">
+            <thead id="tableHead"></thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+
+    <!-- Footer -->
+    <footer class="footer">
+      <p>Adedaz Charging Center Dashboard — Data sourced live from
+        <a href="https://docs.google.com/spreadsheets/d/17p_OfNljq6YXQrYEq4W-4t9rNfOLSvApSwoVMfsuy7U" target="_blank"
+          rel="noopener">Google Sheets</a>
+        • Auto-refreshes every 5 minutes • Sheets auto-detected
+      </p>
+    </footer>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+
+</html>
