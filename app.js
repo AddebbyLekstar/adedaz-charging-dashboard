@@ -32,11 +32,11 @@ async function discoverSheets() {
 
         if (sheets.length > 0) return sheets;
 
-        // Fallback: if parsing fails, use known sheets
-        return ['Jan 2026', 'Feb 2026'];
+        // Fallback: if parsing fails, gracefully fail without mocking data
+        return [];
     } catch (err) {
-        console.warn('Sheet discovery failed, using fallback:', err);
-        return ['Jan 2026', 'Feb 2026'];
+        console.warn('Sheet discovery failed:', err);
+        return [];
     }
 }
 
@@ -213,7 +213,9 @@ function renderMonthButtons() {
     let btns = `<button class="month-btn active" data-month="all" onclick="setActiveMonth('all')">All Months</button>`;
 
     for (const name of detectedSheets) {
-        btns += `<button class="month-btn" data-month="${name}" onclick="setActiveMonth('${name}')">${name}</button>`;
+        const safeName = escapeHtml(name);
+        const attrName = escapeHtml(name.replace(/['"\\\\]/g, ''));
+        btns += `<button class="month-btn" data-month="${attrName}" onclick="setActiveMonth('${attrName}')">${safeName}</button>`;
     }
 
     selector.innerHTML = btns;
@@ -223,7 +225,9 @@ function renderMonthButtons() {
     if (monthDropdown) {
         let opts = `<option value="">— Select Month —</option>`;
         for (const name of detectedSheets) {
-            opts += `<option value="${name}">${name}</option>`;
+            const safeName = escapeHtml(name);
+            const attrName = escapeHtml(name.replace(/['"\\\\]/g, ''));
+            opts += `<option value="${attrName}">${safeName}</option>`;
         }
         monthDropdown.innerHTML = opts;
     }
@@ -280,6 +284,13 @@ function renderKPIs() {
             icon: '📐'
         },
         {
+            id: 'fuel', label: 'Total Fuel Cost', value: totalFuel,
+            avg: data.length ? totalFuel / data.length : 0,
+            prev: prevMonth.reduce((s, r) => s + r.expensesParsed.fuel, 0),
+            curr: lastMonth.reduce((s, r) => s + r.expensesParsed.fuel, 0),
+            icon: '⛽'
+        },
+        {
             id: 'fuelratio', label: 'Fuel / Revenue', value: fuelRatio,
             isPercent: true,
             prev: sum(prevMonth, 'revenue') > 0 ? (prevMonth.reduce((s, r) => s + r.expensesParsed.fuel, 0) / sum(prevMonth, 'revenue') * 100) : 0,
@@ -288,12 +299,12 @@ function renderKPIs() {
         }
     ];
 
-    const classMap = { revenue: 'revenue', expenses: 'expenses', gross: 'gross', profit: 'profit', margin: 'margin', fuelratio: 'fuelratio' };
+    const classMap = { revenue: 'revenue', expenses: 'expenses', gross: 'gross', profit: 'profit', margin: 'margin', fuel: 'fuel', fuelratio: 'fuelratio' };
 
     const grid = document.getElementById('kpiGrid');
     grid.innerHTML = metrics.map(m => {
         const change = m.prev > 0 ? ((m.curr - m.prev) / m.prev * 100) : 0;
-        const trendClass = change > 0 ? (m.id === 'expenses' || m.id === 'fuelratio' ? 'down' : 'up') : change < 0 ? (m.id === 'expenses' || m.id === 'fuelratio' ? 'up' : 'down') : 'neutral';
+        const trendClass = change > 0 ? (m.id === 'expenses' || m.id === 'fuelratio' || m.id === 'fuel' ? 'down' : 'up') : change < 0 ? (m.id === 'expenses' || m.id === 'fuelratio' || m.id === 'fuel' ? 'up' : 'down') : 'neutral';
         const trendIcon = change > 0 ? '↑' : change < 0 ? '↓' : '→';
         const prevName = months.length >= 2 ? months[months.length - 2].split(' ')[0] : 'prev';
         const trendLabel = `vs ${prevName}`;
@@ -451,6 +462,45 @@ function renderManagerAnalysis() {
       <div class="manager-stat">
         <div class="manager-stat__label">Avg Profit (no payout)</div>
         <div class="manager-stat__value ${avgProfitWithout >= 0 ? 'cell-positive' : 'cell-negative'}">${avgProfitWithout < 0 ? '-' : ''}${formatCurrency(avgProfitWithout)}</div>
+      </div>
+    </div>
+  `;
+}
+
+// ===== FUEL COST ANALYSIS =====
+function renderFuelAnalysis() {
+    const filterData = getFilteredData();
+    const overallData = Object.values(allData).flat();
+    const container = document.getElementById('fuelPanel');
+    if (overallData.length === 0) { container.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:1rem;">No data available</p>'; return; }
+
+    const monthlyFuel = filterData.reduce((s, r) => s + r.expensesParsed.fuel, 0);
+    const overallFuel = overallData.reduce((s, r) => s + r.expensesParsed.fuel, 0);
+    
+    // Additional robust metrics for filtered month
+    const totalExp = sum(filterData, 'totalExpenses') + sum(filterData, 'managerPayout');
+    const fuelPctOfExp = totalExp > 0 ? (monthlyFuel / totalExp * 100).toFixed(1) + '%' : '0%';
+    const avgDailyFuel = filterData.length > 0 ? formatCurrency(monthlyFuel / filterData.length) : formatCurrency(0);
+
+    const monthLabel = activeMonth === 'all' ? 'All Months' : escapeHtml(activeMonth);
+
+    container.innerHTML = `
+    <div class="manager-grid">
+      <div class="manager-stat">
+        <div class="manager-stat__label">Selected Period (${monthLabel})</div>
+        <div class="manager-stat__value cell-highlight">${formatCurrency(monthlyFuel)}</div>
+      </div>
+      <div class="manager-stat">
+        <div class="manager-stat__label">Overall Fuel (All Time)</div>
+        <div class="manager-stat__value">${formatCurrency(overallFuel)}</div>
+      </div>
+      <div class="manager-stat">
+        <div class="manager-stat__label">Avg Daily Fuel Cost</div>
+        <div class="manager-stat__value">${avgDailyFuel}</div>
+      </div>
+      <div class="manager-stat">
+        <div class="manager-stat__label">Fuel % of Total Expenses</div>
+        <div class="manager-stat__value">${fuelPctOfExp}</div>
       </div>
     </div>
   `;
@@ -872,6 +922,41 @@ function renderForecastChart() {
     });
 }
 
+// ===== NEW CHART: Monthly Fuel Comparison =====
+function renderFuelCostChart() {
+    const c = getChartColors();
+    if (detectedSheets.length === 0) return;
+
+    // Group total fuel cost by each month
+    const labels = detectedSheets.slice().reverse(); // Optional: order earliest to latest if detectedSheets is latest first
+    const dataValues = labels.map(month => {
+       const mData = allData[month] || [];
+       return mData.reduce((s, r) => s + r.expensesParsed.fuel, 0);
+    });
+
+    const ctx = document.getElementById('fuelCostChart').getContext('2d');
+    if (charts.fuelCost) charts.fuelCost.destroy();
+    charts.fuelCost = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [{
+                label: 'Total Fuel Cost', data: dataValues,
+                backgroundColor: c.amberFaded, borderColor: c.amber,
+                borderWidth: 1.5, borderRadius: 4
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: { ...tooltipConfig(), callbacks: { label: ctx2 => `Fuel Cost: ${formatCurrency(ctx2.raw)}` } }
+            },
+            scales: defaultScales()
+        }
+    });
+}
+
 // ===== DATA TABLE with Running Totals =====
 let tableVisible = false;
 
@@ -1170,6 +1255,7 @@ function renderAll() {
     renderAlerts();
     renderBreakEven();
     renderManagerAnalysis();
+    renderFuelAnalysis();
     renderWeeklySummaries();
 
     // Wrap each chart in try/catch so one failure doesn't crash the dashboard
@@ -1179,7 +1265,8 @@ function renderAll() {
         renderDayOfWeekChart,
         renderProfitMarginChart,
         renderExpenseTrendChart,
-        renderForecastChart
+        renderForecastChart,
+        renderFuelCostChart
     ];
     for (const fn of chartRenders) {
         try { fn(); } catch (e) { console.error(`Chart render error in ${fn.name}:`, e); }
@@ -1188,6 +1275,81 @@ function renderAll() {
     // Only render table when visible (performance)
     if (tableVisible) renderTable();
 }
+
+// ===== WEATHER FORECAST & FUEL RISK =====
+async function fetchWeatherAndRender() {
+    const container = document.getElementById('weatherPanel');
+    if (!container) return;
+    
+    // Iraye-Oke, Epe, Lagos Coordinates
+    const lat = 6.58;
+    const lon = 3.98;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=Africa%2FLagos`;
+    
+    try {
+        const resp = await fetch(url);
+        if (!resp.ok) throw new Error('Weather fetch failed');
+        const data = await resp.json();
+        
+        const daily = data.daily;
+        if (!daily || !daily.time) throw new Error('Invalid weather data');
+        
+        let html = '<div class="weather-grid">';
+        
+        for (let i = 0; i < daily.time.length; i++) {
+            const dateStr = daily.time[i];
+            const dateObj = new Date(dateStr);
+            const dayName = dateObj.toLocaleDateString('en-GB', { weekday: 'short' });
+            const shortDate = dateObj.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+            
+            const maxTemp = Math.round(daily.temperature_2m_max[i]);
+            const precip = daily.precipitation_sum[i];
+            const code = daily.weathercode[i];
+            
+            // Map WMO Weather codes to emoji
+            let icon = '☀️';
+            if (code >= 1 && code <= 3) icon = '⛅';
+            else if (code >= 45 && code <= 48) icon = '🌫️';
+            else if (code >= 51 && code <= 67) icon = '🌧️';
+            else if (code >= 71 && code <= 77) icon = '❄️';
+            else if (code >= 80 && code <= 82) icon = '🌦️';
+            else if (code >= 95) icon = '⛈️';
+            
+            const isHighRisk = precip > 2; // > 2mm means significant rain
+            
+            html += `
+              <div class="weather-card ${isHighRisk ? 'weather-card--risk' : 'weather-card--safe'}">
+                <div class="weather-card__header">
+                  <span class="weather-card__day">${dayName}</span>
+                  <span class="weather-card__date">${shortDate}</span>
+                </div>
+                <div class="weather-card__body">
+                  <div class="weather-card__icon-wrapper">
+                    <span class="weather-card__icon">${icon}</span>
+                  </div>
+                  <div class="weather-card__temp">${maxTemp}°</div>
+                  <div class="weather-card__precip">
+                    <span class="precip-icon">💧</span> ${precip > 0 ? precip + 'mm' : '0mm'}
+                  </div>
+                </div>
+                <div class="weather-card__footer">
+                  <span class="weather-card__badge ${isHighRisk ? 'badge--danger' : 'badge--success'}">
+                    ${isHighRisk ? '⚠️ High Risk' : '✨ Optimal'}
+                  </span>
+                </div>
+              </div>
+            `;
+        }
+        
+        html += '</div>';
+        container.innerHTML = html;
+        
+    } catch (err) {
+        console.error('Weather Error:', err);
+        container.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:1rem;">Could not load weather forecast.</p>';
+    }
+}
+
 
 // ===== INITIALIZATION =====
 async function init() {
@@ -1210,6 +1372,7 @@ async function init() {
         // Render everything
         renderAll();
         renderRevenueChart(); // always show all months overlay
+        fetchWeatherAndRender(); // Fetch weather data independent of sheets
         updateTimestamp();
 
         loader.classList.add('fade-out');

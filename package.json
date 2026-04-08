@@ -1,6 +1,6 @@
 {
   "name": "adedaz-charging-dashboard",
-  "version": "1.0.0",
+  "version": "1.5.0",
   "description": "Adedaz Charging Center — Daily Revenue Dashboard. Live data visualization from Google Sheets.",
   "private": true,
   "scripts": {

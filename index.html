@@ -68,7 +68,7 @@
       <!-- Rendered by JS -->
     </div>
 
-    <!-- KPI Cards (6 cards: Revenue, Expenses, Gross, Profit, Margin, Fuel Ratio) -->
+    <!-- KPI Cards (7 cards: Revenue, Expenses, Gross, Profit, Margin, Fuel, Fuel Ratio) -->
     <section id="kpiGrid" class="kpi-grid" aria-label="Key performance indicators">
       <!-- Rendered by JS -->
     </section>
@@ -94,6 +94,23 @@
       <div class="section-title">👤 Manager Payout Analysis</div>
       <div id="managerPanel" class="insights-card">
         <!-- Rendered by JS -->
+      </div>
+    </section>
+
+    <!-- Fuel Cost Analysis -->
+    <section class="insights-section">
+      <div class="section-title">⛽ Fuel Cost Analysis</div>
+      <div id="fuelPanel" class="insights-card">
+        <!-- Rendered by JS -->
+      </div>
+    </section>
+
+    <!-- Weather Forecast & Fuel Risk -->
+    <section class="insights-section">
+      <div class="section-title">🌦️ Weather & Fuel Risk Forecast (7 Days)</div>
+      <div class="section-subtitle" style="font-size: 0.8rem; color: var(--text-muted); margin-top: -10px; margin-bottom: 1rem; padding-left: 5px;">📍 Iraye-Oke, Epe, Lagos</div>
+      <div id="weatherPanel" class="insights-card" style="min-height: 120px; display: flex; align-items: center; justify-content: center;">
+        <div class="loading-spinner" style="width:24px;height:24px; border-width: 2px;"></div>
       </div>
     </section>
 
@@ -187,6 +204,19 @@
         </div>
         <div class="chart-wrapper chart-wrapper--small">
           <canvas id="forecastChart"></canvas>
+        </div>
+      </div>
+
+      <!-- NEW: Monthly Fuel Comparison -->
+      <div class="chart-card chart-card--wide">
+        <div class="chart-card__header">
+          <div>
+            <div class="chart-card__title">⛽ Monthly Fuel Comparison</div>
+            <div class="chart-card__subtitle">Total fuel expenses month by month</div>
+          </div>
+        </div>
+        <div class="chart-wrapper">
+          <canvas id="fuelCostChart"></canvas>
         </div>
       </div>
 
